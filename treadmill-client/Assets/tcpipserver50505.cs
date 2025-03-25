@@ -49,8 +49,8 @@ public class tcpipserver50505 : MonoBehaviour
     {
         if (connected)
         {
-            SendNetworkMessage("Hello: " + ct.ToString());
-            ct += 1;
+      //      SendNetworkMessage("Hello: " + ct.ToString());
+      //      ct += 1;
         }
         else 
         {

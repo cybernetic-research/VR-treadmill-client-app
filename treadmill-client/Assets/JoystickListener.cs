@@ -132,7 +132,7 @@ public class JoystickListener : MonoBehaviour
             Vector2 joystickValue;
             if (rightController.TryGetFeatureValue(CommonUsages.primary2DAxis, out joystickValue))
             {
-                if (joystickValue.x > 0) // Moving forward
+                if (joystickValue.x != 0) // Moving forward
                 {
                     UpdateStatus("Right Joypad Moved Forward: " + joystickValue.x);
                     serverScript.SendNetworkMessage(
