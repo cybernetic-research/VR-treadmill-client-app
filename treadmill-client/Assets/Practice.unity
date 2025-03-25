@@ -150,6 +150,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   serverPort: 50505
   serverIPAddress: 
+  received: 
+  sent: 
+  statusMsg: 
 --- !u!4 &359694829
 Transform:
   m_ObjectHideFlags: 0
@@ -286,6 +289,52 @@ MonoBehaviour:
   m_LightCookieSize: {x: 1, y: 1}
   m_LightCookieOffset: {x: 0, y: 0}
   m_SoftShadowQuality: 1
+--- !u!1 &434928080
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 434928082}
+  - component: {fileID: 434928081}
+  m_Layer: 0
+  m_Name: JoystickListener
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &434928081
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 434928080}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f22391db01fef1c4ab3dde4d32a46f2c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  serverScript: {fileID: 359694828}
+  statusMsg: 
+--- !u!4 &434928082
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 434928080}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &605678597
 GameObject:
   m_ObjectHideFlags: 0
@@ -722,3 +771,4 @@ SceneRoots:
   - {fileID: 781904078}
   - {fileID: 936266141}
   - {fileID: 359694829}
+  - {fileID: 434928082}
