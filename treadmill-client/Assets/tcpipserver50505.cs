@@ -6,6 +6,9 @@ using System.Net.Sockets;
 using System.Threading;
 using Unity.Android.Gradle.Manifest;
 using System.Collections.Generic;
+using System.IO;
+using UnityEditor.PackageManager;
+using System.Threading.Tasks;
 
 public class tcpipserver50505 : MonoBehaviour
 {
@@ -45,8 +48,12 @@ public class tcpipserver50505 : MonoBehaviour
     {
         if (connected)
         {
-            SendMessageToClient("Hello: "+ct.ToString());
+            SendNetworkMessage("Hello: " + ct.ToString());
             ct += 1;
+        }
+        else 
+        {
+            UpdateStatus("not connected");
         }
     }
 
@@ -57,19 +64,12 @@ public class tcpipserver50505 : MonoBehaviour
         {
             string message = messageQueue.Dequeue();
             received = message; // Update serialized field safely
-            Debug.Log("Received: " + received);
-            string response = "Server response: " + message;
-            SendMessageToClient(message);
         }
         timer += Time.deltaTime; // Increment timer by the time elapsed since the last frame
         if (timer >= interval)
         {
             PerformOperation();
             timer = 0f; // Reset the timer
-        }
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            SendMessageToClient("Hello");
         }
     }
 
@@ -79,13 +79,31 @@ public class tcpipserver50505 : MonoBehaviour
         Debug.Log(statusMsg);
     }
 
-    private void UpdateReceived(string message)
+
+
+
+    public void SendNetworkMessage(string message)
     {
-        received = message;
-        Debug.Log("Received: " + received);
+        try
+        {
+            System.Net.Sockets.NetworkStream ns;
+            lock (client.GetStream())
+            {
+                ns = client.GetStream();
+            }
+            byte[] bytesToSend = System.Text.Encoding.ASCII.GetBytes(message+"\r\n\r\n");
+            sent = message;
+            ns.Write(bytesToSend, 0, bytesToSend.Length);
+            ns.Flush();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus("transmit error " + ex.Message);
+        }
     }
 
-    private void SetupServer()
+
+    private async void SetupServer()
     {
         try
         {
@@ -93,52 +111,62 @@ public class tcpipserver50505 : MonoBehaviour
             server = new TcpListener(localAddr, serverPort);
             server.Start();
 
-            byte[] buffer = new byte[1024];
-            string data = null;
-
+            UpdateStatus("Server started, waiting for connection...");
             while (true)
             {
-
-                client = server.AcceptTcpClient();
-
-                UpdateStatus("Connected!");
+                client = await server.AcceptTcpClientAsync(); // Accept clients asynchronously
+                UpdateStatus("Client connected!");
                 connected = true;
-                data = null;
                 stream = client.GetStream();
 
-                int i;
-                try
-                {
-                    while ((i = stream.Read(buffer, 0, buffer.Length)) != 0)
-                    {
-                        data = Encoding.UTF8.GetString(buffer, 0, i);
-
-                        // Add the message to the queue
-                        lock (messageQueue)
-                        {
-                            messageQueue.Enqueue(data);
-                        }
-
-
-                    }
-                }
-                catch (Exception e2)
-                {
-                    UpdateStatus("SocketException: " + e2.Message);
-                }
-                client.Close();
-                connected = false;
+                // Start reading data asynchronously
+                _ = Task.Run(() => ReadDataAsync(stream));
             }
         }
         catch (SocketException e)
         {
-            UpdateStatus("SocketException: " + e);
+            connected = false;
+            UpdateStatus("SocketException: " + e.Message);
         }
         finally
         {
+            connected = false;
             server?.Stop();
         }
     }
+
+    private async Task ReadDataAsync(NetworkStream stream)
+{
+    byte[] buffer = new byte[1024];
+    try
+    {
+        while (connected)
+        {
+            if (stream.CanRead)
+            {
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length); // Asynchronous reading
+                if (bytesRead == 0) break; // Connection closed
+
+                string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                lock (messageQueue)
+                {
+                    messageQueue.Enqueue(data); // Queue message for processing in Update()
+                }
+            }
+        }
+    }
+    catch (Exception e)
+    {
+        connected = false;
+        UpdateStatus("Read error: " + e.Message);
+    }
+    finally
+    {
+        connected = false;
+        client?.Close();
+    }
+}
+
 
     private void OnApplicationQuit()
     {
@@ -148,19 +176,7 @@ public class tcpipserver50505 : MonoBehaviour
         thread?.Abort();
     }
 
-    public void SendMessageToClient(string message)
-    {
-        if (connected)
-        {
-            byte[] msg = Encoding.UTF8.GetBytes(message);
-            stream.Write(msg, 0, msg.Length);
-            sent = message;
-        }
-        else 
-        {
-            UpdateStatus("TX error");
-        }
-    }
+    
 
     // Optionally, add a method to set the port programmatically
     public void SetPort(int port)
