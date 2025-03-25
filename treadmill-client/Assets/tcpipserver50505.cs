@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using Unity.Android.Gradle.Manifest;
+using System.Collections.Generic;
 
 public class tcpipserver50505 : MonoBehaviour
 {
@@ -23,6 +24,7 @@ public class tcpipserver50505 : MonoBehaviour
     private string sent = "";
     [SerializeField]
     private string statusMsg = "";
+    bool connected = false;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -34,8 +36,37 @@ public class tcpipserver50505 : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
+    
+    private Queue<string> messageQueue = new Queue<string>();
+    private float timer = 0f;
+    private float interval = 5f; // 5 seconds
+    private int ct = 0;
+    void PerformOperation()
     {
+        if (connected)
+        {
+            SendMessageToClient("Hello: "+ct.ToString());
+            ct += 1;
+        }
+    }
+
+    private void Update()
+    {
+        // Consume messages from the queue on the main thread
+        while (messageQueue.Count > 0)
+        {
+            string message = messageQueue.Dequeue();
+            received = message; // Update serialized field safely
+            Debug.Log("Received: " + received);
+            string response = "Server response: " + message;
+            SendMessageToClient(message);
+        }
+        timer += Time.deltaTime; // Increment timer by the time elapsed since the last frame
+        if (timer >= interval)
+        {
+            PerformOperation();
+            timer = 0f; // Reset the timer
+        }
         if (Input.GetKeyDown(KeyCode.Space))
         {
             SendMessageToClient("Hello");
@@ -46,6 +77,12 @@ public class tcpipserver50505 : MonoBehaviour
     {
         statusMsg = input;
         Debug.Log(statusMsg);
+    }
+
+    private void UpdateReceived(string message)
+    {
+        received = message;
+        Debug.Log("Received: " + received);
     }
 
     private void SetupServer()
@@ -65,7 +102,7 @@ public class tcpipserver50505 : MonoBehaviour
                 client = server.AcceptTcpClient();
 
                 UpdateStatus("Connected!");
-
+                connected = true;
                 data = null;
                 stream = client.GetStream();
 
@@ -75,10 +112,14 @@ public class tcpipserver50505 : MonoBehaviour
                     while ((i = stream.Read(buffer, 0, buffer.Length)) != 0)
                     {
                         data = Encoding.UTF8.GetString(buffer, 0, i);
-                        received = data;
 
-                        string response = "Server response: " + data.ToString();
-                        SendMessageToClient(response);
+                        // Add the message to the queue
+                        lock (messageQueue)
+                        {
+                            messageQueue.Enqueue(data);
+                        }
+
+
                     }
                 }
                 catch (Exception e2)
@@ -86,6 +127,7 @@ public class tcpipserver50505 : MonoBehaviour
                     UpdateStatus("SocketException: " + e2.Message);
                 }
                 client.Close();
+                connected = false;
             }
         }
         catch (SocketException e)
@@ -108,15 +150,16 @@ public class tcpipserver50505 : MonoBehaviour
 
     public void SendMessageToClient(string message)
     {
-        if (stream == null)
+        if (connected)
         {
-            UpdateStatus("Stream is null. Message cannot be sent.");
-            return;
+            byte[] msg = Encoding.UTF8.GetBytes(message);
+            stream.Write(msg, 0, msg.Length);
+            sent = message;
         }
-
-        byte[] msg = Encoding.UTF8.GetBytes(message);
-        stream.Write(msg, 0, msg.Length);
-        sent = message;
+        else 
+        {
+            UpdateStatus("TX error");
+        }
     }
 
     // Optionally, add a method to set the port programmatically
