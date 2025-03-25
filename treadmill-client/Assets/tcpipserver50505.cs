@@ -4,6 +4,7 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using Unity.Android.Gradle.Manifest;
 
 public class tcpipserver50505 : MonoBehaviour
 {
@@ -16,6 +17,12 @@ public class tcpipserver50505 : MonoBehaviour
     private int serverPort = 50505; // Default port, changeable via the Inspector or at runtime
     [SerializeField]
     private string serverIPAddress = IpAddr; // IP Address exposed to Unity
+    [SerializeField]
+    private string received = "";
+    [SerializeField]
+    private string sent = "";
+    [SerializeField]
+    private string statusMsg = "";
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -35,6 +42,12 @@ public class tcpipserver50505 : MonoBehaviour
         }
     }
 
+    void UpdateStatus(string input)
+    {
+        statusMsg = input;
+        Debug.Log(statusMsg);
+    }
+
     private void SetupServer()
     {
         try
@@ -48,29 +61,36 @@ public class tcpipserver50505 : MonoBehaviour
 
             while (true)
             {
-                Debug.Log("Waiting for connection...");
+
                 client = server.AcceptTcpClient();
-                Debug.Log("Connected!");
+
+                UpdateStatus("Connected!");
 
                 data = null;
                 stream = client.GetStream();
 
                 int i;
-
-                while ((i = stream.Read(buffer, 0, buffer.Length)) != 0)
+                try
                 {
-                    data = Encoding.UTF8.GetString(buffer, 0, i);
-                    Debug.Log("Received: " + data);
+                    while ((i = stream.Read(buffer, 0, buffer.Length)) != 0)
+                    {
+                        data = Encoding.UTF8.GetString(buffer, 0, i);
+                        received = data;
 
-                    string response = "Server response: " + data.ToString();
-                    SendMessageToClient(response);
+                        string response = "Server response: " + data.ToString();
+                        SendMessageToClient(response);
+                    }
+                }
+                catch (Exception e2)
+                {
+                    UpdateStatus("SocketException: " + e2.Message);
                 }
                 client.Close();
             }
         }
         catch (SocketException e)
         {
-            Debug.Log("SocketException: " + e);
+            UpdateStatus("SocketException: " + e);
         }
         finally
         {
@@ -90,13 +110,13 @@ public class tcpipserver50505 : MonoBehaviour
     {
         if (stream == null)
         {
-            Debug.LogWarning("Stream is null. Message cannot be sent.");
+            UpdateStatus("Stream is null. Message cannot be sent.");
             return;
         }
 
         byte[] msg = Encoding.UTF8.GetBytes(message);
         stream.Write(msg, 0, msg.Length);
-        Debug.Log("Sent: " + message);
+        sent = message;
     }
 
     // Optionally, add a method to set the port programmatically
@@ -105,11 +125,11 @@ public class tcpipserver50505 : MonoBehaviour
         if (server == null) // Ensure the server isn't already running
         {
             serverPort = port;
-            Debug.Log($"Server port set to {serverPort}");
+            UpdateStatus($"Server port set to {serverPort}");
         }
         else
         {
-            Debug.LogWarning("Cannot change the port while the server is running.");
+            UpdateStatus("Cannot change the port while the server is running.");
         }
     }
 
@@ -131,7 +151,7 @@ public class tcpipserver50505 : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("Error retrieving local IP address: " + e.Message);
+            UpdateStatus("Error retrieving local IP address: " + e.Message);
         }
         return localIP;
     }
