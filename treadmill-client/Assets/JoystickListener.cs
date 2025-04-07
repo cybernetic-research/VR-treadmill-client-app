@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,20 +11,33 @@ public class JoystickListener : MonoBehaviour
     bool foundRight = false;
     private InputDevice leftController;
     private InputDevice rightController;
+    const float MIN_DELTA = 0.01f;
 
+    public encoder joyEncoder;
+
+    encoder.ControllerData controllerData = new encoder.ControllerData();
     // Reference to the server50505 script
     public tcpipserver50505 serverScript;
     [SerializeField]
     private string statusMsg = "";
+    [SerializeField]
+    private string LeftX;
+    [SerializeField]
+    private string LeftY;
+    [SerializeField]
+    private string RightX;
+    [SerializeField]
+    private string RightY;
 
     void Start()
     {
         StartCoroutine(InitializeControllers());
+        SendLatestControllerState();
     }
 
     IEnumerator InitializeControllers()
     {
-        yield return new WaitForSeconds(1.0f); // Wait for controllers to initialize
+        yield return new WaitForSeconds(3.0f); // Wait for controllers to initialize
 
         leftController = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
         rightController = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
@@ -76,9 +90,84 @@ public class JoystickListener : MonoBehaviour
 
     void Update()
     {
-        if (foundLeft) { CheckLeftJoypad(); }
-        if (foundRight) { CheckRightJoypad(); }
+        bool change = false;
+        if (foundLeft) { if (UpdateLeftJoypad()) { change = true; } }
+        if (foundRight) { if (UpdateRightJoypad()) { change = true; } }
         CheckDevices();
+        if (change)
+        {   //send latest update
+            SendLatestControllerState();
+
+            LeftX = controllerData.LeftController.Joystick.X.ToString("0.00");
+            LeftY = controllerData.LeftController.Joystick.Y.ToString("0.00");
+            RightX = controllerData.RightController.Joystick.X.ToString("0.00");
+            RightY = controllerData.RightController.Joystick.Y.ToString("0.00");
+        }
+    }
+
+    void SendLatestControllerState()
+    {
+        string msg = joyEncoder.ConvertStructToJson(controllerData);
+        serverScript.SendNetworkMessage(msg); // Call the test() function
+    }
+
+
+
+
+
+    private double previousLeftX = 0.0f;
+    private double previousLeftY = 0.0f;
+
+    bool UpdateLeftJoypad()
+    {
+        bool bResult = false;
+        controllerData.LeftController.Joystick.X = 0.0f;
+        controllerData.LeftController.Joystick.Y = 0.0f;
+        if (leftController.isValid)
+        {
+            Vector2 joystickValue;
+            if (leftController.TryGetFeatureValue(CommonUsages.primary2DAxis, out joystickValue))
+            {
+                controllerData.LeftController.Joystick.X = joystickValue.x;
+                controllerData.LeftController.Joystick.Y = joystickValue.y;
+            }
+        }
+        
+        if (Math.Abs(controllerData.LeftController.Joystick.X - previousLeftX) > MIN_DELTA ||
+            Math.Abs(controllerData.LeftController.Joystick.Y - previousLeftY) > MIN_DELTA)
+        {
+            previousLeftX = controllerData.LeftController.Joystick.X;
+            previousLeftY = controllerData.LeftController.Joystick.Y;
+            bResult = true;
+        }
+        return (bResult);
+    }
+
+    private double previousRightX = 0.0f;
+    private double previousRightY = 0.0f;
+    bool UpdateRightJoypad()
+    {
+        bool bResult = false;
+        controllerData.RightController.Joystick.X = 0.0f; 
+        controllerData.RightController.Joystick.Y = 0.0f;
+        if (rightController.isValid)
+        {
+            Vector2 joystickValue;
+            if (rightController.TryGetFeatureValue(CommonUsages.primary2DAxis, out joystickValue))
+            {
+                controllerData.RightController.Joystick.X = joystickValue.x;
+                controllerData.RightController.Joystick.Y = joystickValue.y;
+            }
+        }
+        
+        if (Math.Abs(controllerData.RightController.Joystick.X - previousRightX) > MIN_DELTA ||
+            Math.Abs(controllerData.RightController.Joystick.Y - previousRightY) > MIN_DELTA)
+        {
+            previousRightX = controllerData.RightController.Joystick.X;
+            previousRightY = controllerData.RightController.Joystick.Y;
+            bResult = true;
+        }
+        return (bResult);
     }
 
     void CheckDevices()
@@ -103,47 +192,5 @@ public class JoystickListener : MonoBehaviour
         }
     }
 
-    void CheckLeftJoypad()
-    {
-        if (leftController.isValid)
-        {
-            Vector2 joystickValue;
-            if (leftController.TryGetFeatureValue(CommonUsages.primary2DAxis, out joystickValue))
-            {
-                if (joystickValue.y != 0) // Moving left or right
-                {
-                    UpdateStatus("Left Joypad Moved Horizontally: " + joystickValue.y);
-                    serverScript.SendNetworkMessage(
-                        "{" +
-                        "msg:leftstick," +
-                        "data:{" +
-                            "y:"+ joystickValue.y.ToString("0.0")+
-                        "}" +
-                        "}"); // Call the test() function
-                }
-            }
-        }
-    }
-
-    void CheckRightJoypad()
-    {
-        if (rightController.isValid)
-        {
-            Vector2 joystickValue;
-            if (rightController.TryGetFeatureValue(CommonUsages.primary2DAxis, out joystickValue))
-            {
-                if (joystickValue.x != 0) // Moving forward
-                {
-                    UpdateStatus("Right Joypad Moved Forward: " + joystickValue.x);
-                    serverScript.SendNetworkMessage(
-                        "{" +
-                        "msg:rightstick," +
-                        "data:{" +
-                            "x:" + joystickValue.x.ToString("0.0") +
-                        "}" +
-                        "}"); // Call the test() function
-                }
-            }
-        }
-    }
+   
 }

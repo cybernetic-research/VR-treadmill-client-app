@@ -44,7 +44,7 @@ public class tcpipserver50505 : MonoBehaviour
     private Queue<string> messageQueue = new Queue<string>();
     private float timer = 0f;
     private float interval = 5f; // 5 seconds
-    private int ct = 0;
+   
     void PerformOperation()
     {
         if (connected)
@@ -76,8 +76,15 @@ public class tcpipserver50505 : MonoBehaviour
 
     void UpdateStatus(string input)
     {
-        statusMsg = input;
-        Debug.Log(statusMsg);
+        try
+        {
+            statusMsg = input;
+            Debug.Log(statusMsg);
+        }
+        catch (Exception e)
+        {
+            Debug.Log(e.Message);
+        }
     }
 
 
